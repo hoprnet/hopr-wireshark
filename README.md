@@ -133,9 +133,9 @@ decides which one fits — so the hop is identified rather than guessed at.
 
 | Crate | What it is |
 | --- | --- |
-| `crates/epan-sys` | `bindgen` bindings to `libwireshark`, generated against whichever Wireshark is found at build time |
-| `crates/epan` | a safe wrapper over the registration, tree, tvbuff, conversation and preference surface a dissector uses |
-| `crates/hopr-dissector` | the plugin: libp2p framing, HOPR decryption, and the protocols above it |
+| `epan-sys` | `bindgen` bindings to `libwireshark`, generated against whichever Wireshark is found at build time |
+| `epan` | a safe wrapper over the registration, tree, tvbuff, conversation and preference surface a dissector uses |
+| `hopr-dissector` | the plugin: libp2p framing, HOPR decryption, and the protocols above it |
 
 The protocol layers are decoded with the node's own crates — `ApplicationData`,
 `HoprStartProtocol`, `Segment`, `HoprPacket` — rather than with a re-implementation of the wire

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/epan-sys", "crates/epan", "crates/hopr-dissector"]
+members = ["epan-sys", "epan", "hopr-dissector"]
 
 [workspace.package]
 edition = "2024"
@@ -10,8 +10,8 @@ repository = "https://github.com/hoprnet/hopr-wireshark"
 authors = ["HOPR Association <tech@hoprnet.org>"]
 
 [workspace.dependencies]
-epan = { path = "crates/epan" }
-epan-sys = { path = "crates/epan-sys" }
+epan = { path = "epan" }
+epan-sys = { path = "epan-sys" }
 
 anyhow = "1.0"
 bimap = "0.6"
