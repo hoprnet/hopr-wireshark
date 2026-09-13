@@ -1,0 +1,17 @@
+[package]
+name = "epan-sys"
+version = "0.1.0"
+description = "Raw FFI bindings to Wireshark's packet dissection library (libwireshark/epan)"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+links = "wireshark"
+
+[dependencies]
+libc = { workspace = true }
+
+[build-dependencies]
+bindgen = { workspace = true }
+pkg-config = { workspace = true }

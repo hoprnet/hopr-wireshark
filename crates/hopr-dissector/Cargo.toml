@@ -1,0 +1,33 @@
+[package]
+name = "hopr-dissector"
+version = "0.1.0"
+description = "Wireshark dissector for the HOPR mixnet protocol stack over unencrypted libp2p"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[lib]
+# Wireshark loads epan plugins with `g_module_open`, so the artifact has to be a plain shared
+# object exporting the loader's five symbols. `hopr.so` (see `just install`) is the file name;
+# the directory it goes in is version-scoped by Wireshark itself.
+name = "hopr"
+crate-type = ["cdylib"]
+
+[dependencies]
+epan = { workspace = true }
+
+bytes = { workspace = true }
+hex = { workspace = true }
+serde = { workspace = true }
+toml = { workspace = true }
+
+hopr-crypto-packet = { workspace = true }
+hopr-lib = { workspace = true }
+hopr-protocol-app = { workspace = true }
+hopr-protocol-session = { workspace = true }
+hopr-protocol-start = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }

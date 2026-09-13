@@ -1,0 +1,13 @@
+[package]
+name = "epan"
+version = "0.1.0"
+description = "Safe wrapper over the parts of Wireshark's epan API a dissector plugin needs"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+epan-sys = { workspace = true }
+libc = { workspace = true }

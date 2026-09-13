@@ -1,0 +1,62 @@
+[workspace]
+resolver = "3"
+members = ["crates/epan-sys", "crates/epan", "crates/hopr-dissector"]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.91"
+license = "GPL-3.0-only"
+repository = "https://github.com/hoprnet/hopr-wireshark"
+authors = ["HOPR Association <tech@hoprnet.org>"]
+
+[workspace.dependencies]
+epan = { path = "crates/epan" }
+epan-sys = { path = "crates/epan-sys" }
+
+anyhow = "1.0"
+bindgen = "0.72"
+bytes = "1.12"
+hex = "0.4"
+libc = "0.2"
+pkg-config = "0.3"
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "2.0"
+toml = "0.9"
+tracing = "0.1"
+
+# HOPR protocol stack.
+#
+# These are the same crates the node itself is built from, so the dissector decodes with the
+# node's own code rather than a hand-written copy of the wire format: a protocol change that
+# would silently break a re-implementation breaks the build here instead.
+#
+# They resolve through the `[patch]` block at the bottom of this file to a local `hoprnet`
+# checkout, because the `insecure-plaintext` transport work they depend on is not released.
+# See README.md ("Building").
+hopr-crypto-packet = { version = "2.0.0", default-features = false, features = ["ed25519"] }
+hopr-lib = { version = "5.0.0-rc.2", default-features = false }
+hopr-protocol-app = { version = "1.1.0", default-features = false }
+hopr-protocol-hopr = { version = "6.3.0", default-features = false }
+hopr-protocol-session = { version = "1.2.0", default-features = false }
+hopr-protocol-start = { version = "2.0.0", default-features = false }
+hopr-api = { version = "4.3.0" }
+hopr-types = { version = "4.0.1", features = ["use-bindings"] }
+
+[profile.release]
+# The plugin is loaded into the Wireshark process; a panic unwinding across the C boundary is
+# undefined behaviour, so every `extern "C"` entry point catches panics (see `epan::ffi_guard`).
+# `panic = "abort"` is deliberately *not* set: it would turn a recoverable dissection bug into a
+# hard crash of the user's Wireshark session.
+codegen-units = 1
+lto = "thin"
+opt-level = 3
+
+# Local checkout of the HOPR node sources. The dissector needs the `insecure-plaintext`
+# transport branch, which is not published; point these at wherever `hoprnet` is checked out.
+[patch.crates-io]
+hopr-crypto-packet = { path = "../hoprnet-3/crypto/packet" }
+hopr-lib = { path = "../hoprnet-3/hopr/hopr-lib" }
+hopr-protocol-app = { path = "../hoprnet-3/protocols/app" }
+hopr-protocol-hopr = { path = "../hoprnet-3/protocols/hopr" }
+hopr-protocol-session = { path = "../hoprnet-3/protocols/session" }
+hopr-protocol-start = { path = "../hoprnet-3/protocols/start" }
