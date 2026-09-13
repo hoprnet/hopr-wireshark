@@ -15,31 +15,41 @@
 # packets that merely pass through it still decrypt at every hop whose key is present.
 
 
-# The quickest way to cover a local cluster: every identity file in one directory, under one
-# password. Relative paths resolve against this file's directory. Files are taken in name order,
-# and each node is labelled with its file name.
+# ── The whole cluster at once ─────────────────────────────────────────────────────────────
+#
+# The identity files are the ones hoprd itself runs with — the same files `--identity` points at,
+# read with the same code — so nothing has to be extracted from them first. A local cluster keeps
+# all of them in one directory under one password, which is this one line:
 #
 #   identity_dir = "../hoprnet/sdk/identities"
-#   identity_password = "local"
+#   identity_password = "e2e-test"
+#
+# Relative paths resolve against this file's directory. Every file in the directory that is a
+# keystore is loaded, whatever it is called, and each node is labelled with its file name;
+# anything that is not a keystore (a README, a stray backup) is skipped. A keystore that will not
+# open with the given password is an error rather than a skip, so a mistyped password says so
+# instead of leaving you with no keys and no explanation.
 
 
-# Or list the nodes one by one.
+# ── Or node by node ───────────────────────────────────────────────────────────────────────
 
 [[node]]
 # Label shown in the dissection. Defaults to a short form of the public key.
 name = "entry"
-# The packet key, as hex. `0x` prefix optional.
-packet_key = "0x5eb212d4d6aa5948c4f71574d45dad43afef6d330edb873fca69d0e1b197e906"
+# The identity file this node runs with, and the password it was encrypted under. `password` may
+# be left out if a file-level `identity_password` is set above.
+identity_file = "/path/to/hopr-node_1.id"
+password = "e2e-test"
 
 [[node]]
 name = "relay"
-# Or take it from the encrypted identity file the node runs with.
-identity_file = "/path/to/hopr-node_2.id"
-password = "local"
+# Or give the packet key directly, as hex. `0x` prefix optional.
+packet_key = "0x5eb212d4d6aa5948c4f71574d45dad43afef6d330edb873fca69d0e1b197e906"
 
 [[node]]
 name = "exit"
-packet_key = "0x9dec751c00f49e50fceff7114823f726a0425a68a8dc6af0e4287badfea8f4a4"
+identity_file = "/path/to/hopr-node_3.id"
+password = "e2e-test"
 # Optional. The four-byte identifier the chain assigned this node, which packet headers name the
 # next hop by. Giving it makes relay labels appear on the first pass over a capture instead of the
 # second; leaving it out costs nothing else, since the dissector learns it from the traffic.

@@ -120,8 +120,9 @@ impl NodeRegistry {
 
 /// The `[[node]]` entries of the key file.
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Config {
-    /// Load every `*.id` in this directory, using `identity_password`.
+    /// Load every identity file in this directory, using `identity_password`.
     ///
     /// A convenience for a local cluster, whose identities all sit in one directory under one
     /// password. Relative paths resolve against the key file's own directory.
@@ -160,16 +161,34 @@ impl Config {
             let mut entries: Vec<_> = std::fs::read_dir(&dir)
                 .map_err(|e| format!("cannot list {}: {e}", dir.display()))?
                 .filter_map(|e| e.ok().map(|e| e.path()))
-                .filter(|p| p.extension().is_some_and(|e| e == "id"))
+                .filter(|p| p.is_file())
                 .collect();
             // Sorted so the order — and therefore the default labels — do not depend on the
             // filesystem's directory order.
             entries.sort();
 
+            // Selected by content rather than by extension. hoprd takes an identity's path from
+            // configuration and imposes no naming, so `*.id` is a local-cluster habit rather than
+            // a rule — filtering on it would quietly ignore a real node. Anything that is not a
+            // keystore is skipped, and anything that *is* one but will not open is an error: a
+            // wrong password must not read as "no identities here".
+            let mut found = 0;
             for path in entries {
+                if !looks_like_identity(&path) {
+                    continue;
+                }
+                found += 1;
                 let name = path.file_stem().map(|s| s.to_string_lossy().into_owned());
                 let keypair = load_identity(&path, password)?;
                 registry.push(Node::new(name, keypair), None);
+            }
+
+            if found == 0 {
+                return Err(format!(
+                    "no identity files found in {} — an identity is a JSON keystore, and nothing in \
+                     that directory is one",
+                    dir.display()
+                ));
             }
         }
 
@@ -207,7 +226,28 @@ fn parse_packet_key(text: &str) -> Result<OffchainKeypair, String> {
     OffchainKeypair::from_secret(&bytes).map_err(|e| format!("`packet_key` is not a valid packet key: {e}"))
 }
 
+/// Whether a file is plausibly an identity, judged by its first byte.
+///
+/// An identity file is an eth-keystore JSON document, so it starts with `{`. That is enough to
+/// tell one from the README or the lock file that might share its directory, and it deliberately
+/// does not try to validate the contents — deciding that a *keystore* is unreadable is
+/// [`load_identity`]'s job, and it has the password needed to say so properly.
+fn looks_like_identity(path: &Path) -> bool {
+    use std::io::Read;
+
+    std::fs::File::open(path)
+        .map(|mut file| {
+            let mut head = [0u8; 1];
+            matches!(file.read_exact(&mut head), Ok(())) && head[0] == b'{'
+        })
+        .unwrap_or(false)
+}
+
 /// Reads the packet key out of an encrypted identity file.
+///
+/// This is the same file, read the same way, that `hoprd` is pointed at with `--identity`: the
+/// decryption goes through `hopr-lib`'s own `HoprKeys`, so a file a node can start with is a file
+/// the dissector can read, and neither has to know how the other stores it.
 fn load_identity(path: &Path, password: &str) -> Result<OffchainKeypair, String> {
     // `IdentityRetrievalModes::FromFile` *creates* an identity when the path does not exist,
     // which would be a surprising thing for a read-only tool to do to a mistyped path.
@@ -355,7 +395,185 @@ const _: fn() = || {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use super::*;
+
+    /// A scratch directory unique to one test.
+    fn scratch(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("hopr-dissector-keys-{}-{name}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("temp directory is creatable");
+        dir
+    }
+
+    /// Writes a real identity file and returns the packet key inside it.
+    ///
+    /// Written through `HoprKeys` rather than by hand, so the fixture is the same eth-keystore
+    /// document `hoprd` writes — which is the point of the test. `FromFile` creates an identity
+    /// when the path does not exist, which is exactly the behaviour [`load_identity`] guards
+    /// against and the one relied on here.
+    fn write_identity(path: &Path, password: &str) -> OffchainPublicKey {
+        let keys = HoprKeys::try_from(IdentityRetrievalModes::FromFile {
+            password,
+            id_path: &path.to_string_lossy(),
+        })
+        .expect("an identity file is creatable at a fresh path");
+        *keys.packet_key.public()
+    }
+
+    #[test]
+    fn should_read_a_packet_key_out_of_an_identity_file() {
+        let dir = scratch("identity-file");
+        let identity = dir.join("node.id");
+        let expected = write_identity(&identity, "e2e-test");
+
+        std::fs::write(
+            dir.join("keys.toml"),
+            format!(
+                "[[node]]\nname = \"entry\"\nidentity_file = \"{}\"\npassword = \"e2e-test\"\n",
+                identity.display()
+            ),
+        )
+        .expect("key file is writable");
+
+        let registry = NodeRegistry::load(&dir.join("keys.toml")).unwrap_or_else(|e| panic!("{e}"));
+
+        assert_eq!(registry.len(), 1);
+        assert_eq!(registry.nodes()[0].name, "entry");
+        assert_eq!(
+            registry.nodes()[0].public,
+            expected,
+            "the key read back must be the one the identity file holds"
+        );
+    }
+
+    #[test]
+    fn should_resolve_an_identity_path_against_the_key_file() {
+        let dir = scratch("relative-path");
+        let expected = write_identity(&dir.join("node.id"), "pw");
+
+        // A key file that names its identities relatively is the portable one, so the path has to
+        // resolve against the key file rather than against the process's working directory —
+        // which, for a plugin, is wherever Wireshark happens to have been started.
+        std::fs::write(
+            dir.join("keys.toml"),
+            "[[node]]\nidentity_file = \"node.id\"\npassword = \"pw\"\n",
+        )
+        .expect("key file is writable");
+
+        let registry = NodeRegistry::load(&dir.join("keys.toml")).unwrap_or_else(|e| panic!("{e}"));
+        assert_eq!(registry.nodes()[0].public, expected);
+    }
+
+    #[test]
+    fn should_report_a_wrong_identity_password() {
+        let dir = scratch("wrong-password");
+        write_identity(&dir.join("node.id"), "right");
+        std::fs::write(
+            dir.join("keys.toml"),
+            "[[node]]\nidentity_file = \"node.id\"\npassword = \"wrong\"\n",
+        )
+        .expect("key file is writable");
+
+        let Err(error) = NodeRegistry::load(&dir.join("keys.toml")) else {
+            panic!("a wrong password must not silently pass");
+        };
+        assert!(
+            error.contains("node.id"),
+            "the error must name the file that would not open: {error}"
+        );
+    }
+
+    #[test]
+    fn should_load_a_whole_directory_of_identities_under_one_password() {
+        let dir = scratch("identity-dir");
+        let identities = dir.join("identities");
+        std::fs::create_dir_all(&identities).expect("directory is creatable");
+
+        let mut expected: Vec<_> = (1..=3)
+            .map(|i| write_identity(&identities.join(format!("hopr-node_{i}.id")), "e2e-test"))
+            .collect();
+
+        // Things that share a cluster's identity directory but are not identities. Selecting by
+        // content rather than by extension means these are skipped without the user having to
+        // tidy up first — and, equally, that an identity named something else is still found.
+        std::fs::write(identities.join("README"), "not an identity\n").expect("file is writable");
+        std::fs::write(identities.join("hopr-node_4.id.bak"), "also not an identity\n").expect("file is writable");
+
+        std::fs::write(
+            dir.join("keys.toml"),
+            "identity_dir = \"identities\"\nidentity_password = \"e2e-test\"\n",
+        )
+        .expect("key file is writable");
+
+        let registry = NodeRegistry::load(&dir.join("keys.toml")).unwrap_or_else(|e| panic!("{e}"));
+
+        assert_eq!(registry.len(), 3, "only the three identities count");
+        assert_eq!(
+            registry.nodes().iter().map(|n| n.name.as_str()).collect::<Vec<_>>(),
+            vec!["hopr-node_1", "hopr-node_2", "hopr-node_3"],
+            "nodes are named after their files, in name order rather than directory order"
+        );
+
+        let mut loaded: Vec<_> = registry.nodes().iter().map(|n| n.public).collect();
+        loaded.sort_by_key(|k| k.as_ref().to_vec());
+        expected.sort_by_key(|k| k.as_ref().to_vec());
+        assert_eq!(loaded, expected);
+    }
+
+    #[test]
+    fn should_reject_an_identity_directory_with_nothing_in_it() {
+        let dir = scratch("empty-identity-dir");
+        std::fs::create_dir_all(dir.join("identities")).expect("directory is creatable");
+        std::fs::write(dir.join("identities").join("README"), "{ not really\n").ok();
+        std::fs::write(
+            dir.join("keys.toml"),
+            "identity_dir = \"identities\"\nidentity_password = \"pw\"\n",
+        )
+        .expect("key file is writable");
+
+        // A directory that yields nothing has to be an error rather than an empty registry: an
+        // empty registry looks exactly like "decryption is off" once packets start arriving.
+        assert!(NodeRegistry::load(&dir.join("keys.toml")).is_err());
+    }
+
+    #[test]
+    fn should_reject_an_identity_directory_without_a_password() {
+        let dir = scratch("no-password");
+        std::fs::create_dir_all(dir.join("identities")).expect("directory is creatable");
+        std::fs::write(dir.join("keys.toml"), "identity_dir = \"identities\"\n").expect("key file is writable");
+
+        let Err(error) = NodeRegistry::load(&dir.join("keys.toml")) else {
+            panic!("a password is required");
+        };
+        assert!(error.contains("identity_password"), "{error}");
+    }
+
+    #[test]
+    fn should_reject_a_node_that_gives_a_key_two_ways_or_none() {
+        let dir = scratch("ambiguous");
+
+        std::fs::write(
+            dir.join("both.toml"),
+            "[[node]]\npacket_key = \"0x00\"\nidentity_file = \"node.id\"\npassword = \"pw\"\n",
+        )
+        .expect("key file is writable");
+        assert!(NodeRegistry::load(&dir.join("both.toml")).is_err());
+
+        std::fs::write(dir.join("neither.toml"), "[[node]]\nname = \"nameless\"\n").expect("key file is writable");
+        assert!(NodeRegistry::load(&dir.join("neither.toml")).is_err());
+    }
+
+    #[test]
+    fn should_reject_a_misspelled_key_file_field() {
+        let dir = scratch("typo");
+        // Silently ignoring an unknown field turns a typo into "no keys loaded", which surfaces
+        // much later as every packet failing to decrypt.
+        std::fs::write(dir.join("keys.toml"), "identity_directory = \"identities\"\n").expect("key file is writable");
+
+        assert!(NodeRegistry::load(&dir.join("keys.toml")).is_err());
+    }
 
     fn registry_of(n: usize) -> NodeRegistry {
         let mut registry = NodeRegistry::default();
