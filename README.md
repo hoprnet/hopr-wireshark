@@ -71,8 +71,17 @@ work — the `insecure-plaintext` transport feature and the SURB reply-opener re
 
 ## Using it
 
-1. Build the cluster's nodes with the `insecure-plaintext` feature, and make them announce TCP
-   rather than QUIC (`HOPRD_NAT=true` does that without a rebuild).
+1. Build the cluster's nodes with the `insecure-plaintext` feature, leaving `transport-quic` out:
+
+   ```console
+   $ cargo build --release -p hoprd --no-default-features \
+       --features runtime-tokio,session-server,strategy-pix-test,insecure-plaintext
+   ```
+
+   Run them with `HOPRD_NAT=true`. That is not about NAT here — it is the switch that makes a
+   node announce `/ip4/.../tcp/<port>`. Without it the announced address is QUIC, which nothing
+   in this build listens on: `hopr-utils-session` pulls `hopr-lib` with default features, so
+   `transport-announce-quic` cannot be turned off from hoprd.
 2. Write a key file listing the cluster's packet keys — see `keys.example.toml`.
 3. Point Wireshark at it: **Edit → Preferences → Protocols → HOPR → Node key file**, or
    `-o hopr.key_file:/path/to/keys.toml` on the command line.
