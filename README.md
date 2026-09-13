@@ -82,7 +82,16 @@ work — the `insecure-plaintext` transport feature and the SURB reply-opener re
    node announce `/ip4/.../tcp/<port>`. Without it the announced address is QUIC, which nothing
    in this build listens on: `hopr-utils-session` pulls `hopr-lib` with default features, so
    `transport-announce-quic` cannot be turned off from hoprd.
-2. Write a key file listing the cluster's packet keys — see `keys.example.toml`.
+2. Write a key file naming the cluster's keys — see `keys.example.toml`. For a local cluster that
+   is usually one line, pointing at the identity files the nodes already run with:
+
+   ```toml
+   identity_dir = "../hoprnet/sdk/identities"
+   identity_password = "e2e-test"
+   ```
+
+   Identity files are read with `hopr-lib`'s own `HoprKeys`, so whatever `hoprd --identity` can
+   open, this can. A node may instead name its own file and password, or give a packet key as hex.
 3. Point Wireshark at it: **Edit → Preferences → Protocols → HOPR → Node key file**, or
    `-o hopr.key_file:/path/to/keys.toml` on the command line.
 4. Capture on the interface the nodes talk over. For a cluster on one machine that is loopback.
@@ -109,8 +118,13 @@ ciphertext — enough to see a Session's shape without being able to read it.
 
 ## What it works out for itself
 
-Only the packet keys are configured. Three things that would otherwise have to be supplied are
-derived from the traffic:
+Only the nodes' keys are configured — usually just a path to the identity files they already run
+with. Everything else is derived:
+
+**The keys themselves** are read out of those identity files with `hopr-lib`'s own `HoprKeys`,
+not with a re-implementation of the keystore format, so there is nothing to export or convert
+first and a change to how nodes store their keys arrives with a rebuild. Files are recognised by
+being keystores rather than by their name, because hoprd imposes none.
 
 **Which node is at each end of a connection** comes from the `/plaintext/2.0.0` exchange, which
 carries each side's peer id. That is what says whose key decrypts a packet, and it is why the
