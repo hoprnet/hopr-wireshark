@@ -74,6 +74,13 @@ pub struct FilenamePref {
     storage: *mut *const c_char,
 }
 
+// SAFETY: `storage` points at leaked, immovable storage that epan owns for the life of the
+// process; this handle only reads through it. epan writes the value on the same thread that
+// dissects, so a read here never races a write. The marker traits exist because the handle is
+// held in a process-wide registration struct, not because it is used from another thread.
+unsafe impl Send for FilenamePref {}
+unsafe impl Sync for FilenamePref {}
+
 impl FilenamePref {
     /// The path the user configured, or `None` while the preference is unset.
     pub fn get(self) -> Option<PathBuf> {
@@ -95,6 +102,10 @@ impl FilenamePref {
 pub struct BoolPref {
     storage: *mut bool,
 }
+
+// SAFETY: as [`FilenamePref`].
+unsafe impl Send for BoolPref {}
+unsafe impl Sync for BoolPref {}
 
 impl BoolPref {
     /// The value the user configured.

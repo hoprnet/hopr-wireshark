@@ -13,7 +13,8 @@ authors.workspace = true
 # object exporting the loader's five symbols. `hopr.so` (see `just install`) is the file name;
 # the directory it goes in is version-scoped by Wireshark itself.
 name = "hopr"
-crate-type = ["cdylib"]
+# `rlib` alongside it so the integration tests can link the same code the plugin is built from.
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 epan = { workspace = true }
@@ -28,6 +29,9 @@ hopr-lib = { workspace = true }
 hopr-protocol-app = { workspace = true }
 hopr-protocol-session = { workspace = true }
 hopr-protocol-start = { workspace = true }
+hopr-transport-session = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
+bimap = { workspace = true }
+hopr-protocol-pix = { workspace = true }

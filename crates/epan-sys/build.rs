@@ -72,7 +72,11 @@ fn main() {
     writeln!(f, "pub const WIRESHARK_VERSION_MAJOR: i32 = {major};").unwrap();
     writeln!(f, "/// Wireshark minor version these bindings were generated against.").unwrap();
     writeln!(f, "pub const WIRESHARK_VERSION_MINOR: i32 = {minor};").unwrap();
-    writeln!(f, "/// Full Wireshark version string these bindings were generated against.").unwrap();
+    writeln!(
+        f,
+        "/// Full Wireshark version string these bindings were generated against."
+    )
+    .unwrap();
     writeln!(f, "pub const WIRESHARK_VERSION: &str = \"{major}.{minor}.{micro}\";").unwrap();
 
     // Let downstream crates (and `just install`) find the right plugin directory without
@@ -103,7 +107,9 @@ fn probe_wireshark() -> pkg_config::Library {
         return pkg_config::Config::new()
             .cargo_metadata(false)
             .probe("wireshark")
-            .unwrap_or_else(|_| panic!("WIRESHARK_INCLUDE_DIR={include} is set but no wireshark.pc was found under {libdir}/pkgconfig"));
+            .unwrap_or_else(|_| {
+                panic!("WIRESHARK_INCLUDE_DIR={include} is set but no wireshark.pc was found under {libdir}/pkgconfig")
+            });
     }
 
     pkg_config::Config::new().probe("wireshark").unwrap_or_else(|e| {

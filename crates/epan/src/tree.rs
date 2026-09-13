@@ -68,19 +68,25 @@ impl<'a> Tree<'a> {
 
     /// Adds a byte array that is not a verbatim slice of `tvb` — a decrypted value, say — while
     /// still anchoring it to the `offset..offset + len` bytes it came from.
+    ///
+    /// `len` is only how much of the buffer the item highlights; the value's own length decides
+    /// how many bytes are read from it. `proto_tree_add_bytes` conflates the two and would read
+    /// `len` bytes out of `value`, which for anything decrypted — where the highlight covers the
+    /// whole ciphertext and the value is a field inside it — reads off the end of the allocation.
     pub fn add_bytes(self, field: FieldId, tvb: Tvb<'_>, offset: usize, len: usize, value: &[u8]) -> TreeItem<'a> {
         if self.raw.is_null() {
             return TreeItem::null(self.reg);
         }
-        // SAFETY: `value` is read for its full length during the call and not retained.
+        // SAFETY: `value` is read for exactly `value.len()` bytes during the call and not retained.
         let item = unsafe {
-            sys::proto_tree_add_bytes(
+            sys::proto_tree_add_bytes_with_length(
                 self.raw,
                 self.reg.field(field),
                 tvb.as_raw(),
                 offset as c_int,
                 len as c_int,
                 value.as_ptr(),
+                value.len() as c_int,
             )
         };
         TreeItem {
@@ -120,6 +126,32 @@ impl<'a> Tree<'a> {
         // SAFETY: as `add`.
         let item = unsafe {
             sys::proto_tree_add_uint(
+                self.raw,
+                self.reg.field(field),
+                tvb.as_raw(),
+                offset as c_int,
+                len as c_int,
+                value,
+            )
+        };
+        TreeItem {
+            raw: item,
+            reg: self.reg,
+        }
+    }
+
+    /// Adds a 64-bit integer value anchored to `offset..offset + len`.
+    ///
+    /// Separate from [`Tree::add_uint`] because epan's two setters are not interchangeable: the
+    /// 32-bit one rejects a field wider than `FT_UINT32` with a "dissector bug" expert info
+    /// rather than truncating.
+    pub fn add_uint64(self, field: FieldId, tvb: Tvb<'_>, offset: usize, len: usize, value: u64) -> TreeItem<'a> {
+        if self.raw.is_null() {
+            return TreeItem::null(self.reg);
+        }
+        // SAFETY: as `add`.
+        let item = unsafe {
+            sys::proto_tree_add_uint64(
                 self.raw,
                 self.reg.field(field),
                 tvb.as_raw(),
@@ -325,7 +357,13 @@ impl<'a> Pinfo<'a> {
     pub fn set_protocol(&mut self, name: &'static str) {
         // SAFETY: `cinfo` may be null (no columns wanted); epan's `col_*` tolerate that. The
         // string is leaked, so it outlives epan's use of it.
-        unsafe { sys::col_set_str((*self.raw).cinfo, sys::COL_PROTOCOL as c_int, leak_cstring(name).as_ptr()) };
+        unsafe {
+            sys::col_set_str(
+                (*self.raw).cinfo,
+                sys::COL_PROTOCOL as c_int,
+                leak_cstring(name).as_ptr(),
+            )
+        };
     }
 
     /// Empties the Info column.
@@ -338,14 +376,7 @@ impl<'a> Pinfo<'a> {
     pub fn append_info(&mut self, text: &str) {
         let text = CString::new(text).unwrap_or_else(|_| c"<info contains NUL>".into());
         // SAFETY: epan copies the strings during the call.
-        unsafe {
-            sys::col_append_sep_str(
-                (*self.raw).cinfo,
-                sys::COL_INFO as c_int,
-                c", ".as_ptr(),
-                text.as_ptr(),
-            )
-        };
+        unsafe { sys::col_append_sep_str((*self.raw).cinfo, sys::COL_INFO as c_int, c", ".as_ptr(), text.as_ptr()) };
     }
 
     /// Tells TCP that dissection needs more bytes than this segment carries.
@@ -374,7 +405,7 @@ impl<'a> Pinfo<'a> {
     ///
     /// Used for anything that is not a verbatim slice of the wire: the decrypted HOPR payload
     /// shows up as its own "Decrypted ..." tab next to the raw frame.
-    pub fn add_data_source(&mut self, parent: Tvb<'a>, name: &str, data: &[u8]) -> Tvb<'a> {
+    pub fn add_data_source<'t>(&mut self, parent: Tvb<'t>, name: &str, data: &[u8]) -> Tvb<'t> {
         let name = CString::new(name).unwrap_or_else(|_| c"<name contains NUL>".into());
         // SAFETY: `tvb_new_child_real_data` copies nothing, so `data` would have to outlive the
         // tvb — which is why the bytes are copied into epan-managed memory first, by handing the

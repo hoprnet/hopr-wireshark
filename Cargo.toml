@@ -14,6 +14,7 @@ epan = { path = "crates/epan" }
 epan-sys = { path = "crates/epan-sys" }
 
 anyhow = "1.0"
+bimap = "0.6"
 bindgen = "0.72"
 bytes = "1.12"
 hex = "0.4"
@@ -38,7 +39,9 @@ hopr-lib = { version = "5.0.0-rc.2", default-features = false }
 hopr-protocol-app = { version = "1.1.0", default-features = false }
 hopr-protocol-hopr = { version = "6.3.0", default-features = false }
 hopr-protocol-session = { version = "1.2.0", default-features = false }
+hopr-protocol-pix = { version = "0.2.0", default-features = false }
 hopr-protocol-start = { version = "2.0.0", default-features = false }
+hopr-transport-session = { version = "0.30.0", default-features = false }
 hopr-api = { version = "4.3.0" }
 hopr-types = { version = "4.0.1", features = ["use-bindings"] }
 
@@ -59,4 +62,6 @@ hopr-lib = { path = "../hoprnet-3/hopr/hopr-lib" }
 hopr-protocol-app = { path = "../hoprnet-3/protocols/app" }
 hopr-protocol-hopr = { path = "../hoprnet-3/protocols/hopr" }
 hopr-protocol-session = { path = "../hoprnet-3/protocols/session" }
+hopr-protocol-pix = { path = "../hoprnet-3/protocols/pix" }
 hopr-protocol-start = { path = "../hoprnet-3/protocols/start" }
+hopr-transport-session = { path = "../hoprnet-3/transport/session" }

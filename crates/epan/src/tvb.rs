@@ -71,7 +71,8 @@ impl<'a> Tvb<'a> {
 
     /// Reads one byte, or `None` if it was not captured.
     pub fn u8(self, offset: usize) -> Option<u8> {
-        self.has(offset, 1).then(|| unsafe { sys::tvb_get_uint8(self.raw, offset as c_int) })
+        self.has(offset, 1)
+            .then(|| unsafe { sys::tvb_get_uint8(self.raw, offset as c_int) })
     }
 
     /// Reads a big-endian `u16`, or `None` if the bytes were not captured.

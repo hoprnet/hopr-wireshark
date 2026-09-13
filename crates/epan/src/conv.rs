@@ -24,6 +24,14 @@ impl Conversation {
         let conv = unsafe { sys::find_or_create_conversation(pinfo.as_raw()) };
         Self(conv as usize)
     }
+
+    /// A distinct identity with no conversation behind it, for tests of state keyed by one.
+    ///
+    /// Not `cfg(test)`: the dissector's own tests are in a different crate and need it too, and a
+    /// value that names no conversation is harmless — nothing here dereferences the identity.
+    pub fn of_raw_for_test(id: usize) -> Self {
+        Self(id)
+    }
 }
 
 /// Which side of a conversation a packet is travelling on.

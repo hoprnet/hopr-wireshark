@@ -3441,14 +3441,17 @@ name = "hopr-dissector"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bimap",
  "bytes",
  "epan",
  "hex",
  "hopr-crypto-packet",
  "hopr-lib",
  "hopr-protocol-app",
+ "hopr-protocol-pix",
  "hopr-protocol-session",
  "hopr-protocol-start",
+ "hopr-transport-session",
  "serde",
  "toml",
 ]
