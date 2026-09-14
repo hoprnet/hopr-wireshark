@@ -64,10 +64,10 @@ Outside Nix, install your distribution's `wireshark-dev` / `wireshark-devel` pac
 normally; `epan-sys` finds the headers through `pkg-config`, or through
 `WIRESHARK_INCLUDE_DIR` and `WIRESHARK_LIB_DIR` if you point them at a build tree.
 
-**A fresh clone does not build on its own yet.** The HOPR protocol crates come through the
-`[patch.crates-io]` block at the bottom of `Cargo.toml`, which points at a sibling `hoprnet`
-checkout — `../hoprnet-3` as written; change it to wherever yours is. They are not taken from
-crates.io because two pieces of this are unreleased:
+**A fresh clone does not build on its own yet.** The HOPR protocol crates are taken from a
+sibling `hoprnet` checkout — `../hoprnet-3` as the paths are written in `[workspace.dependencies]`;
+change them to wherever yours is. They are not taken from crates.io because two pieces of this are
+unreleased:
 
 | Needed | Where |
 | --- | --- |
@@ -75,7 +75,9 @@ crates.io because two pieces of this are unreleased:
 | `reply_opener_from_surb`, and `hopr-lib`'s feature forwarding | `hoprnet`, branch `lukas/wireshark-dissector-support` |
 | `insecure-plaintext` on the node binary | `hoprd`, branch `lukas/wireshark-plaintext` |
 
-The patches become ordinary version requirements once those land.
+Those paths become ordinary version requirements once the branches land. Until then, pointing
+them at a `git` URL and branch is what makes the clone build anywhere rather than only next to a
+checkout.
 
 ## Using it
 

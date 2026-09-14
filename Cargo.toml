@@ -34,14 +34,14 @@ tracing = "0.1"
 # They resolve through the `[patch]` block at the bottom of this file to a local `hoprnet`
 # checkout, because the `insecure-plaintext` transport work they depend on is not released.
 # See README.md ("Building").
-hopr-crypto-packet = { version = "2.0.0", default-features = false, features = ["ed25519"] }
-hopr-lib = { version = "5.0.0-rc.2", default-features = false }
-hopr-protocol-app = { version = "1.1.0", default-features = false }
-hopr-protocol-hopr = { version = "6.3.0", default-features = false }
-hopr-protocol-session = { version = "1.2.0", default-features = false }
-hopr-protocol-pix = { version = "0.2.0", default-features = false }
-hopr-protocol-start = { version = "2.0.0", default-features = false }
-hopr-transport-session = { version = "0.30.0", default-features = false }
+hopr-crypto-packet = { path = "../hoprnet-3/crypto/packet", default-features = false, features = ["ed25519"] }
+hopr-lib = { path = "../hoprnet-3/hopr/hopr-lib", default-features = false }
+hopr-protocol-app = { path = "../hoprnet-3/protocols/app", default-features = false }
+hopr-protocol-hopr = { path = "../hoprnet-3/protocols/hopr", default-features = false }
+hopr-protocol-session = { path = "../hoprnet-3/protocols/session", default-features = false }
+hopr-protocol-pix = { path = "../hoprnet-3/protocols/pix", default-features = false }
+hopr-protocol-start = { path = "../hoprnet-3/protocols/start", default-features = false }
+hopr-transport-session = { path = "../hoprnet-3/transport/session", default-features = false }
 hopr-api = { version = "4.3.0" }
 hopr-types = { version = "4.0.1", features = ["use-bindings"] }
 
@@ -53,15 +53,3 @@ hopr-types = { version = "4.0.1", features = ["use-bindings"] }
 codegen-units = 1
 lto = "thin"
 opt-level = 3
-
-# Local checkout of the HOPR node sources. The dissector needs the `insecure-plaintext`
-# transport branch, which is not published; point these at wherever `hoprnet` is checked out.
-[patch.crates-io]
-hopr-crypto-packet = { path = "../hoprnet-3/crypto/packet" }
-hopr-lib = { path = "../hoprnet-3/hopr/hopr-lib" }
-hopr-protocol-app = { path = "../hoprnet-3/protocols/app" }
-hopr-protocol-hopr = { path = "../hoprnet-3/protocols/hopr" }
-hopr-protocol-session = { path = "../hoprnet-3/protocols/session" }
-hopr-protocol-pix = { path = "../hoprnet-3/protocols/pix" }
-hopr-protocol-start = { path = "../hoprnet-3/protocols/start" }
-hopr-transport-session = { path = "../hoprnet-3/transport/session" }
