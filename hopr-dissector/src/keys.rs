@@ -15,11 +15,11 @@
 use std::{collections::HashMap, path::Path};
 
 use hopr_crypto_packet::{HoprKeyIdent, HoprSphinxHeaderSpec, HoprSphinxSuite, ProtocolKeyIdMapper};
+use hopr_lib::HoprKeys;
 use hopr_lib::api::types::{
     crypto::prelude::{Keypair, OffchainKeypair, OffchainPublicKey},
     primitive::prelude::KeyIdMapping,
 };
-use hopr_lib::{HoprKeys, IdentityRetrievalModes};
 use serde::Deserialize;
 
 /// Everything known about one node of the cluster.
@@ -245,21 +245,27 @@ fn looks_like_identity(path: &Path) -> bool {
 
 /// Reads the packet key out of an encrypted identity file.
 ///
-/// This is the same file, read the same way, that `hoprd` is pointed at with `--identity`: the
-/// decryption goes through `hopr-lib`'s own `HoprKeys`, so a file a node can start with is a file
-/// the dissector can read, and neither has to know how the other stores it.
+/// This is the same file, read with the same code, that `hoprd` is pointed at with `--identity`:
+/// the decryption goes through `hopr-lib`'s own `HoprKeys`, so a file a node can start with is a
+/// file the dissector can read, and neither has to know how the other stores it.
+///
+/// # Why not `IdentityRetrievalModes::FromFile`
+///
+/// That is the mode a *node* uses, and it does two things a dissector must not. It creates a new
+/// identity when the path does not exist, so a mistyped path would silently become a fresh key
+/// rather than an error. And when the keystore is in an older format it re-encrypts it in place —
+/// so merely looking at a cluster would rewrite its identity files, which for a read-only tool
+/// pointed at someone else's directory is not a side effect worth having. `read_eth_keystore` is
+/// the same decryption without either.
 fn load_identity(path: &Path, password: &str) -> Result<OffchainKeypair, String> {
-    // `IdentityRetrievalModes::FromFile` *creates* an identity when the path does not exist,
-    // which would be a surprising thing for a read-only tool to do to a mistyped path.
     if !path.exists() {
         return Err(format!("identity file {} does not exist", path.display()));
     }
 
-    let keys = HoprKeys::try_from(IdentityRetrievalModes::FromFile {
-        password,
-        id_path: &path.to_string_lossy(),
-    })
-    .map_err(|e| format!("cannot read identity file {}: {e}", path.display()))?;
+    // The flag is whether the keystore wants migrating. Deliberately dropped: migrating is the
+    // node's business, and doing it here would be a write.
+    let (keys, _needs_migration) = HoprKeys::read_eth_keystore(&path.to_string_lossy(), password)
+        .map_err(|e| format!("cannot read identity file {}: {e}", path.display()))?;
 
     Ok(keys.packet_key)
 }
@@ -397,6 +403,8 @@ const _: fn() = || {
 mod tests {
     use std::path::PathBuf;
 
+    use hopr_lib::IdentityRetrievalModes;
+
     use super::*;
 
     /// A scratch directory unique to one test.
@@ -411,8 +419,8 @@ mod tests {
     ///
     /// Written through `HoprKeys` rather than by hand, so the fixture is the same eth-keystore
     /// document `hoprd` writes — which is the point of the test. `FromFile` creates an identity
-    /// when the path does not exist, which is exactly the behaviour [`load_identity`] guards
-    /// against and the one relied on here.
+    /// when the path does not exist: the behaviour [`load_identity`] refuses to rely on, and the
+    /// one relied on here.
     fn write_identity(path: &Path, password: &str) -> OffchainPublicKey {
         let keys = HoprKeys::try_from(IdentityRetrievalModes::FromFile {
             password,
