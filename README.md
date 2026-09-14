@@ -42,8 +42,8 @@ which performs the peer-identity exchange and then hands the raw stream to the m
 HOPR encryption this dissector is about is untouched; only the layer that was hiding it is gone.
 
 **A node built that way exchanges every packet in a form any on-path observer can read.** It is
-for a local cluster on loopback and nothing else. The feature is off by default, reaches TCP only,
-and the node logs a warning on every start.
+for a local cluster on loopback and nothing else. The feature is off by default, is overridden by
+`transport-quic` if that is also enabled, and the node logs a warning on every start.
 
 ## Building
 
@@ -173,9 +173,9 @@ SURB, and a packet split across both yamux frames and TCP segments.
 
 ## Limitations
 
-* **TCP only.** QUIC encrypts inside the transport with TLS 1.3 and has no plaintext mode, which
-  `insecure-plaintext` therefore cannot reach — a node talking QUIC produces a capture nothing can
-  read. Build the cluster without `transport-quic`, as above.
+* **TCP only.** QUIC encrypts inside the transport with TLS 1.3 and has no plaintext mode, so
+  `transport-quic` overrides `insecure-plaintext` outright — a node built with both keeps `noise`
+  and says so on start. Build the cluster without it, as above.
 * **One Wireshark version per build.** See *Building*.
 * **A capture that starts mid-Session** misses the `/plaintext/2.0.0` handshake that names the
   connection's endpoints, and its packets cannot be attributed. Start the capture before the
