@@ -42,8 +42,8 @@ which performs the peer-identity exchange and then hands the raw stream to the m
 HOPR encryption this dissector is about is untouched; only the layer that was hiding it is gone.
 
 **A node built that way exchanges every packet in a form any on-path observer can read.** It is
-for a local cluster on loopback and nothing else. The feature is off by default, cannot be
-combined with QUIC (which has no unencrypted mode), and the node logs a warning on every start.
+for a local cluster on loopback and nothing else. The feature is off by default, reaches TCP only,
+and the node logs a warning on every start.
 
 ## Building
 
@@ -71,9 +71,9 @@ unreleased:
 
 | Needed | Where |
 | --- | --- |
-| `insecure-plaintext` transport feature | `hopr-impls`, branch `lukas/insecure-plaintext-transport` |
+| `insecure-plaintext` transport feature | `hopr-impls`, branch `lukas/insecure-plaintext-p2p` |
 | `reply_opener_from_surb`, and `hopr-lib`'s feature forwarding | `hoprnet`, branch `lukas/wireshark-dissector-support` |
-| `insecure-plaintext` on the node binary | `hoprd`, branch `lukas/wireshark-plaintext` |
+| `insecure-plaintext` on the node binary | `hoprd`, branch `lukas/insecure-plaintext-hoprd` |
 
 Those paths become ordinary version requirements once the branches land. Until then, pointing
 them at a `git` URL and branch is what makes the clone build anywhere rather than only next to a
@@ -173,9 +173,9 @@ SURB, and a packet split across both yamux frames and TCP segments.
 
 ## Limitations
 
-* **TCP only.** QUIC encrypts inside the transport with TLS 1.3 and has no plaintext mode, so a
-  node reachable over QUIC produces a capture nothing can read. The two features are mutually
-  exclusive at compile time for that reason.
+* **TCP only.** QUIC encrypts inside the transport with TLS 1.3 and has no plaintext mode, which
+  `insecure-plaintext` therefore cannot reach — a node talking QUIC produces a capture nothing can
+  read. Build the cluster without `transport-quic`, as above.
 * **One Wireshark version per build.** See *Building*.
 * **A capture that starts mid-Session** misses the `/plaintext/2.0.0` handshake that names the
   connection's endpoints, and its packets cannot be attributed. Start the capture before the
