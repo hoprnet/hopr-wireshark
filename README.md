@@ -64,10 +64,18 @@ Outside Nix, install your distribution's `wireshark-dev` / `wireshark-devel` pac
 normally; `epan-sys` finds the headers through `pkg-config`, or through
 `WIRESHARK_INCLUDE_DIR` and `WIRESHARK_LIB_DIR` if you point them at a build tree.
 
-The HOPR protocol crates come from a local `hoprnet` checkout, through the `[patch.crates-io]`
-block at the bottom of `Cargo.toml`. It expects `../hoprnet-3`; change the paths if yours is
-somewhere else. They are not taken from crates.io because the dissector depends on unreleased
-work — the `insecure-plaintext` transport feature and the SURB reply-opener reconstruction.
+**A fresh clone does not build on its own yet.** The HOPR protocol crates come through the
+`[patch.crates-io]` block at the bottom of `Cargo.toml`, which points at a sibling `hoprnet`
+checkout — `../hoprnet-3` as written; change it to wherever yours is. They are not taken from
+crates.io because two pieces of this are unreleased:
+
+| Needed | Where |
+| --- | --- |
+| `insecure-plaintext` transport feature | `hopr-impls`, branch `lukas/insecure-plaintext-transport` |
+| `reply_opener_from_surb`, and `hopr-lib`'s feature forwarding | `hoprnet`, branch `lukas/wireshark-dissector-support` |
+| `insecure-plaintext` on the node binary | `hoprd`, branch `lukas/wireshark-plaintext` |
+
+The patches become ordinary version requirements once those land.
 
 ## Using it
 

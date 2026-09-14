@@ -43,8 +43,15 @@ password = "e2e-test"
 
 [[node]]
 name = "relay"
-# Or give the packet key directly, as hex. `0x` prefix optional.
-packet_key = "0x5eb212d4d6aa5948c4f71574d45dad43afef6d330edb873fca69d0e1b197e906"
+identity_file = "/path/to/hopr-node_2.id"
+password = "e2e-test"
+# A node whose key you happen to hold as raw hex can give it directly instead of naming a file —
+# 64 hex digits, `0x` prefix optional:
+#
+#   packet_key = "0x5eb2…e906"
+#
+# Written elided on purpose. A full-length key here would be a key in a public example file: it
+# reads as real to anyone skimming, and to every secret scanner that sees the repository.
 
 [[node]]
 name = "exit"
