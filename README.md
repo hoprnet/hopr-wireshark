@@ -42,8 +42,8 @@ which performs the peer-identity exchange and then hands the raw stream to the m
 HOPR encryption this dissector is about is untouched; only the layer that was hiding it is gone.
 
 **A node built that way exchanges every packet in a form any on-path observer can read.** It is
-for a local cluster on loopback and nothing else. The feature is off by default, cannot be
-combined with QUIC (which has no unencrypted mode), and the node logs a warning on every start.
+for a local cluster on loopback and nothing else. The feature is off by default, is overridden by
+`transport-quic` if that is also enabled, and the node logs a warning on every start.
 
 ## Building
 
@@ -64,18 +64,20 @@ Outside Nix, install your distribution's `wireshark-dev` / `wireshark-devel` pac
 normally; `epan-sys` finds the headers through `pkg-config`, or through
 `WIRESHARK_INCLUDE_DIR` and `WIRESHARK_LIB_DIR` if you point them at a build tree.
 
-**A fresh clone does not build on its own yet.** The HOPR protocol crates come through the
-`[patch.crates-io]` block at the bottom of `Cargo.toml`, which points at a sibling `hoprnet`
-checkout — `../hoprnet-3` as written; change it to wherever yours is. They are not taken from
-crates.io because two pieces of this are unreleased:
+**A fresh clone does not build on its own yet.** The HOPR protocol crates are taken from a
+sibling `hoprnet` checkout — `../hoprnet-3` as the paths are written in `[workspace.dependencies]`;
+change them to wherever yours is. They are not taken from crates.io because two pieces of this are
+unreleased:
 
 | Needed | Where |
 | --- | --- |
-| `insecure-plaintext` transport feature | `hopr-impls`, branch `lukas/insecure-plaintext-transport` |
+| `insecure-plaintext` transport feature | `hopr-impls`, branch `lukas/insecure-plaintext-p2p` |
 | `reply_opener_from_surb`, and `hopr-lib`'s feature forwarding | `hoprnet`, branch `lukas/wireshark-dissector-support` |
-| `insecure-plaintext` on the node binary | `hoprd`, branch `lukas/wireshark-plaintext` |
+| `insecure-plaintext` on the node binary | `hoprd`, branch `lukas/insecure-plaintext-hoprd` |
 
-The patches become ordinary version requirements once those land.
+Those paths become ordinary version requirements once the branches land. Until then, pointing
+them at a `git` URL and branch is what makes the clone build anywhere rather than only next to a
+checkout.
 
 ## Using it
 
@@ -171,9 +173,9 @@ SURB, and a packet split across both yamux frames and TCP segments.
 
 ## Limitations
 
-* **TCP only.** QUIC encrypts inside the transport with TLS 1.3 and has no plaintext mode, so a
-  node reachable over QUIC produces a capture nothing can read. The two features are mutually
-  exclusive at compile time for that reason.
+* **TCP only.** QUIC encrypts inside the transport with TLS 1.3 and has no plaintext mode, so
+  `transport-quic` overrides `insecure-plaintext` outright — a node built with both keeps `noise`
+  and says so on start. Build the cluster without it, as above.
 * **One Wireshark version per build.** See *Building*.
 * **A capture that starts mid-Session** misses the `/plaintext/2.0.0` handshake that names the
   connection's endpoints, and its packets cannot be attributed. Start the capture before the
